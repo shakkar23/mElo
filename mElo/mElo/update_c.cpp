@@ -19,17 +19,17 @@ std::tuple<Numeric, Numeric, Column, Column> update_melo(Numeric rA, Numeric rB,
 
 	Numeric error = observed_score - predicted_score;
 
-	Numeric K = 16;
+	Numeric K = 1;
 
 	rA += K * error;
 	rB += -K * error;
 	
 
 	for (int i = 0; i < k; i++) {
-		cA[0+i*2]  += std::clamp( error * cB[1 + i*2], (Numeric)-1, (Numeric)1);
-		cA[1+i*2]  += std::clamp(-error * cA[1 + i*2], (Numeric)-1, (Numeric)1);
-		cB[0+i*2]  += std::clamp(-error * cB[0 + i*2], (Numeric)-1, (Numeric)1);
-		cB[1+i*2]  += std::clamp( error * cA[0 + i*2], (Numeric)-1, (Numeric)1);
+		cA[0+i*2]  += 0.01 * std::clamp( error * cB[1 + i*2], (Numeric)-1, (Numeric)1);
+		cA[1+i*2]  += 0.01 * std::clamp(-error * cA[1 + i*2], (Numeric)-1, (Numeric)1);
+		cB[0+i*2]  += 0.01 * std::clamp(-error * cB[0 + i*2], (Numeric)-1, (Numeric)1);
+		cB[1+i*2]  += 0.01 * std::clamp( error * cA[0 + i*2], (Numeric)-1, (Numeric)1);
 	}
 
 	return { rA, rB, cA, cB };
