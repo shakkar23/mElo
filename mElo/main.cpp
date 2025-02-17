@@ -67,7 +67,7 @@ int tetrio_trainer() {
 
 	constexpr int batch_period = 10'000;
 
-	for (int batch_n = 0; batch_n < 1; batch_n++) {
+	for (int batch_n = 0; batch_n < 50; batch_n++) {
 
 		Matrix MELO_copy = MELO;
 		// elo copy
@@ -99,6 +99,20 @@ int tetrio_trainer() {
 		save_elo(ELO);
 		save_melo(MELO);
 		save_player_map();
+
+		const auto example_player = "5f708143ea3d3a2b3abdfe23";
+
+		Column prediction(player_map.size());
+		for (auto&& [name, index] : player_map) {
+			auto jth = MELO.get_col(index);
+			auto ith = MELO.get_col(player_map[example_player]);
+			prediction[index] = predict(ELO(0, player_map[example_player]), ELO(0, index), ith, jth);
+		}
+		// print prediction
+		for (auto&& [name, index] : player_map) {
+			std::cout << name << ": " << prediction[index] << std::endl;
+		}
+
 	}
 
 	return 0;
@@ -224,6 +238,7 @@ int rps() {
 		int batch_counter = batch_period;
 
 		std::ranges::shuffle(games_list, LCG);
+
 		for (auto&& [i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
@@ -280,7 +295,7 @@ int rps() {
 }
 
 int main() {
-	return tetrio_viewer_total();
+	return tetrio_trainer();
 }
 
 std::vector<game> init_game_list() {
@@ -289,7 +304,14 @@ std::vector<game> init_game_list() {
 	// read the csv file
 	csv::CSVReader reader("assets/games.csv");
 
+	int i = 0;
+	const int data_limit = 1000'000'000;
+
 	for (auto&& row : reader) {
+		i++;
+		if (i > data_limit) {
+			break;
+		}
 		std::string player1 = row[0].get<std::string>();
 		std::string player2 = row[1].get<std::string>();
 
