@@ -17,6 +17,8 @@
 using namespace std;
 enum {ROCK, PAPERS, SCISSORS, rps_players};
 struct game {
+	// timestamp
+	int timestamp;
 	// indices into the matrix
 	int player1;
 	int player2;
@@ -77,7 +79,12 @@ int tetrio_trainer() {
 		float average_error = 0;
 		int prediction_count = 0;
 
-		for (auto&& [i, j, outcome] : games_list) {
+		// sort by timestamp
+		std::sort(games_list.begin(), games_list.end(), [](const game& a, const game& b) {
+			return a.timestamp < b.timestamp;
+		});
+
+		for (auto&& [ts, i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
@@ -108,16 +115,31 @@ int tetrio_trainer() {
 
 		const auto example_player = "62bde1fadea07bce3643d0cf";
 
+		const int num_predictions = 100;
+
 		Column prediction(player_map.size());
+
+		int i = num_predictions;
 		for (auto&& [name, index] : player_map) {
+			i--;
+			if (i == 0) {
+				break;
+			}
 			auto jth = MELO.get_col(index);
 			auto ith = MELO.get_col(player_map[example_player]);
 			prediction[index] = predict(ELO(0, player_map[example_player]), ELO(0, index), ith, jth);
 		}
+
 		// print prediction
+		i = num_predictions;
 		for (auto&& [name, index] : player_map) {
+			i--;
+			if (i == 0) {
+				break;
+			}
 			std::cout << name << ": " << prediction[index] << std::endl;
 		}
+
 		std::cout << "average error: " << average_error << std::endl;
 
 	}
@@ -246,7 +268,7 @@ int rps() {
 
 		std::ranges::shuffle(games_list, LCG);
 
-		for (auto&& [i, j, outcome] : games_list) {
+		for (auto&& [ts, i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
@@ -319,8 +341,10 @@ std::vector<game> init_game_list() {
 		if (i > data_limit) {
 			break;
 		}
-		std::string player1 = row[0].get<std::string>();
-		std::string player2 = row[1].get<std::string>();
+
+		int timestamp = row[0].get<int>();
+		std::string player1 = row[1].get<std::string>();
+		std::string player2 = row[2].get<std::string>();
 
 		if (player_map.find(player1) == player_map.end()) {
 			player_map[player1] = player_map.size();
@@ -330,8 +354,7 @@ std::vector<game> init_game_list() {
 			player_map[player2] = player_map.size();
 		}
 
-		games_list.push_back({ player_map[player1], player_map[player2], 1 });
-		//games_list.push_back({ player_map[player2], player_map[player1], 0 });
+		games_list.push_back({ timestamp, player_map[player1], player_map[player2], 1 });
 	}
 
 	return games_list;
@@ -340,12 +363,12 @@ std::vector<game> init_game_list() {
 
 std::vector<game> rps_games() {
 	return {
-		{ROCK, SCISSORS, 1},
-		{ROCK, PAPERS, 0},
-		{SCISSORS, PAPERS, 1},
-		{SCISSORS, ROCK, 0},
-		{PAPERS, ROCK, 1},
-		{PAPERS, SCISSORS, 0}
+		{0, ROCK, SCISSORS, 1},
+		{0, ROCK, PAPERS, 0},
+		{0, SCISSORS, PAPERS, 1},
+		{0, SCISSORS, ROCK, 0},
+		{0, PAPERS, ROCK, 1},
+		{0, PAPERS, SCISSORS, 0}
 	};
 }
 
