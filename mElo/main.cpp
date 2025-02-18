@@ -17,6 +17,8 @@
 using namespace std;
 enum {ROCK, PAPERS, SCISSORS, rps_players};
 struct game {
+	// timestamp
+	int timestamp;
 	// indices into the matrix
 	int player1;
 	int player2;
@@ -65,20 +67,31 @@ int tetrio_trainer() {
 	Matrix MELO = get_melo();
 
 
-	constexpr int batch_period = 10'000;
+	constexpr int batch_period = 1'000'000;
 
-	for (int batch_n = 0; batch_n < 50; batch_n++) {
+	for (int batch_n = 0; batch_n < 100; batch_n++) {
 
 		Matrix MELO_copy = MELO;
 		// elo copy
 
 		int batch_counter = batch_period;
 
-		for (auto&& [i, j, outcome] : games_list) {
+		float average_error = 0;
+		int prediction_count = 0;
+
+		// sort by timestamp
+		std::sort(games_list.begin(), games_list.end(), [](const game& a, const game& b) {
+			return a.timestamp < b.timestamp;
+		});
+
+		for (auto&& [ts, i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
-			auto [elo_a, elo_b, melo_a, melo_b] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
+			auto [elo_a, elo_b, melo_a, melo_b, error] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
+
+			average_error = average_error * (prediction_count) / (prediction_count + 1) + error / (prediction_count + 1);
+			prediction_count++;
 
 			MELO.set_col(i, MELO.get_col(i) + melo_a - cA);
 			MELO.set_col(j, MELO.get_col(j) + melo_b - cB);
@@ -100,18 +113,34 @@ int tetrio_trainer() {
 		save_melo(MELO);
 		save_player_map();
 
-		const auto example_player = "5f708143ea3d3a2b3abdfe23";
+		const auto example_player = "62bde1fadea07bce3643d0cf";
+
+		const int num_predictions = 100;
 
 		Column prediction(player_map.size());
+
+		int i = num_predictions;
 		for (auto&& [name, index] : player_map) {
+			i--;
+			if (i == 0) {
+				break;
+			}
 			auto jth = MELO.get_col(index);
 			auto ith = MELO.get_col(player_map[example_player]);
 			prediction[index] = predict(ELO(0, player_map[example_player]), ELO(0, index), ith, jth);
 		}
+
 		// print prediction
+		i = num_predictions;
 		for (auto&& [name, index] : player_map) {
+			i--;
+			if (i == 0) {
+				break;
+			}
 			std::cout << name << ": " << prediction[index] << std::endl;
 		}
+
+		std::cout << "average error: " << average_error << std::endl;
 
 	}
 
@@ -230,7 +259,7 @@ int rps() {
 
 	constexpr int batch_period = 1000;
 
-	for (int batch_n = 0; batch_n < 8; batch_n++) {
+	for (int batch_n = 0; batch_n < 6400; batch_n++) {
 		Matrix MELO_copy = MELO;
 		// elo copy
 		Matrix ELO_copy = ELO;
@@ -239,11 +268,11 @@ int rps() {
 
 		std::ranges::shuffle(games_list, LCG);
 
-		for (auto&& [i, j, outcome] : games_list) {
+		for (auto&& [ts, i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
-			auto [elo_a, elo_b, melo_a, melo_b] = update_melo(ELO_copy[i], ELO_copy[j], cA, cB, outcome);
+			auto [elo_a, elo_b, melo_a, melo_b, error] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
 
 			MELO.set_col(i, MELO.get_col(i) + melo_a - cA);
 			MELO.set_col(j, MELO.get_col(j) + melo_b - cB);
@@ -305,15 +334,17 @@ std::vector<game> init_game_list() {
 	csv::CSVReader reader("assets/games.csv");
 
 	int i = 0;
-	const int data_limit = 1000'000'000;
+	const int data_limit = 1'000'000'000;
 
 	for (auto&& row : reader) {
 		i++;
 		if (i > data_limit) {
 			break;
 		}
-		std::string player1 = row[0].get<std::string>();
-		std::string player2 = row[1].get<std::string>();
+
+		int timestamp = row[0].get<int>();
+		std::string player1 = row[1].get<std::string>();
+		std::string player2 = row[2].get<std::string>();
 
 		if (player_map.find(player1) == player_map.end()) {
 			player_map[player1] = player_map.size();
@@ -323,8 +354,7 @@ std::vector<game> init_game_list() {
 			player_map[player2] = player_map.size();
 		}
 
-		games_list.push_back({ player_map[player1], player_map[player2], 1 });
-		//games_list.push_back({ player_map[player2], player_map[player1], 0 });
+		games_list.push_back({ timestamp, player_map[player1], player_map[player2], 1 });
 	}
 
 	return games_list;
@@ -333,12 +363,12 @@ std::vector<game> init_game_list() {
 
 std::vector<game> rps_games() {
 	return {
-		{ROCK, SCISSORS, 1},
-		{ROCK, PAPERS, 0},
-		{SCISSORS, PAPERS, 1},
-		{SCISSORS, ROCK, 0},
-		{PAPERS, ROCK, 1},
-		{PAPERS, SCISSORS, 0}
+		{0, ROCK, SCISSORS, 1},
+		{0, ROCK, PAPERS, 0},
+		{0, SCISSORS, PAPERS, 1},
+		{0, SCISSORS, ROCK, 0},
+		{0, PAPERS, ROCK, 1},
+		{0, PAPERS, SCISSORS, 0}
 	};
 }
 

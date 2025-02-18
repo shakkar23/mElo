@@ -98,12 +98,19 @@ model_pred_mat < -function(
 Numeric predict(Numeric rA, Numeric rB, Column &cA, Column &cB) {
     Column cA_vec(2 * k);
 	Column cB_vec(2 * k);
+    Column cC_vec(2 * k);
 
 	for (int i = 0; i < 2 * k; i++) {
 		cA_vec[i] = cA[i];
 		cB_vec[i] = cB[i];
 	}
-	auto omega = construct_omega();
 
-    return sigmoid(rA - rB + cA_vec.dot(omega * cB_vec));
+    // omega * cB
+
+    for (int i = 0; i < k; ++i) {
+        cC_vec[2 * i] = cB_vec[2 * i + 1];
+        cC_vec[2 * i + 1] = -cB_vec[2 * i];
+    }
+
+    return sigmoid(rA - rB + cA_vec.dot(cC_vec));
 }
