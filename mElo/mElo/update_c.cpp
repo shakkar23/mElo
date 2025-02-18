@@ -19,7 +19,7 @@ std::tuple<Numeric, Numeric, Column, Column, Numeric> update_melo(Numeric rA, Nu
 
 	Numeric error = observed_score - predicted_score;
 
-	Numeric K = 0.1;
+	Numeric K = 0.04; // equivalent to K=16 for 400-scaled ELO (i.e. chess ELO)
 
 	rA += K * error;
 	rB += -K * error;
