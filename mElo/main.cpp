@@ -65,20 +65,26 @@ int tetrio_trainer() {
 	Matrix MELO = get_melo();
 
 
-	constexpr int batch_period = 10'000;
+	constexpr int batch_period = 1'000'000;
 
-	for (int batch_n = 0; batch_n < 50; batch_n++) {
+	for (int batch_n = 0; batch_n < 100; batch_n++) {
 
 		Matrix MELO_copy = MELO;
 		// elo copy
 
 		int batch_counter = batch_period;
 
+		float average_error = 0;
+		int prediction_count = 0;
+
 		for (auto&& [i, j, outcome] : games_list) {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
-			auto [elo_a, elo_b, melo_a, melo_b] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
+			auto [elo_a, elo_b, melo_a, melo_b, error] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
+
+			average_error = average_error * (prediction_count) / (prediction_count + 1) + error / (prediction_count + 1);
+			prediction_count++;
 
 			MELO.set_col(i, MELO.get_col(i) + melo_a - cA);
 			MELO.set_col(j, MELO.get_col(j) + melo_b - cB);
@@ -100,7 +106,7 @@ int tetrio_trainer() {
 		save_melo(MELO);
 		save_player_map();
 
-		const auto example_player = "5f708143ea3d3a2b3abdfe23";
+		const auto example_player = "62bde1fadea07bce3643d0cf";
 
 		Column prediction(player_map.size());
 		for (auto&& [name, index] : player_map) {
@@ -112,6 +118,7 @@ int tetrio_trainer() {
 		for (auto&& [name, index] : player_map) {
 			std::cout << name << ": " << prediction[index] << std::endl;
 		}
+		std::cout << "average error: " << average_error << std::endl;
 
 	}
 
@@ -230,7 +237,7 @@ int rps() {
 
 	constexpr int batch_period = 1000;
 
-	for (int batch_n = 0; batch_n < 8; batch_n++) {
+	for (int batch_n = 0; batch_n < 6400; batch_n++) {
 		Matrix MELO_copy = MELO;
 		// elo copy
 		Matrix ELO_copy = ELO;
@@ -243,7 +250,7 @@ int rps() {
 			Column cA = MELO_copy.get_col(i);
 			Column cB = MELO_copy.get_col(j);
 
-			auto [elo_a, elo_b, melo_a, melo_b] = update_melo(ELO_copy[i], ELO_copy[j], cA, cB, outcome);
+			auto [elo_a, elo_b, melo_a, melo_b, error] = update_melo(ELO[i], ELO[j], cA, cB, outcome);
 
 			MELO.set_col(i, MELO.get_col(i) + melo_a - cA);
 			MELO.set_col(j, MELO.get_col(j) + melo_b - cB);
@@ -305,7 +312,7 @@ std::vector<game> init_game_list() {
 	csv::CSVReader reader("assets/games.csv");
 
 	int i = 0;
-	const int data_limit = 1000'000'000;
+	const int data_limit = 1'000'000'000;
 
 	for (auto&& row : reader) {
 		i++;
