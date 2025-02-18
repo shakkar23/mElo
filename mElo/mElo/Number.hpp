@@ -2,4 +2,4 @@
 
 
 using Numeric = float;
-constexpr size_t k = 7;
+constexpr size_t k = 1;
